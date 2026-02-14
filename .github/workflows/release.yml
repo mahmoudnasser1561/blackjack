@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            archive: tar.gz
+          - goos: linux
+            goarch: arm64
+            archive: tar.gz
+          - goos: darwin
+            goarch: amd64
+            archive: tar.gz
+          - goos: darwin
+            goarch: arm64
+            archive: tar.gz
+          - goos: windows
+            goarch: amd64
+            archive: zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build and Package
+        env:
+          VERSION: ${{ github.ref_name }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          ARCHIVE: ${{ matrix.archive }}
+        run: |
+          set -eu
+          mkdir -p dist
+
+          BIN_NAME="deck"
+          if [ "$GOOS" = "windows" ]; then
+            BIN_NAME="deck.exe"
+          fi
+
+          GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 go build -o "dist/$BIN_NAME" ./cmd/deck
+
+          PACKAGE_BASE="deck_${VERSION}_${GOOS}_${GOARCH}"
+          if [ "$ARCHIVE" = "zip" ]; then
+            (cd dist && zip "${PACKAGE_BASE}.zip" "$BIN_NAME")
+            rm "dist/$BIN_NAME"
+          else
+            tar -C dist -czf "dist/${PACKAGE_BASE}.tar.gz" "$BIN_NAME"
+            rm "dist/$BIN_NAME"
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
