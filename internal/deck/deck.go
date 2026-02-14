@@ -1,4 +1,4 @@
-package main
+package deck
 
 import (
 	"fmt"
@@ -65,4 +65,12 @@ func (d deck) shuffle() {
 		newPos := r.Intn(len(d) - 1)
 		d[i], d[newPos] = d[newPos], d[i]
 	}
+}
+
+func Run() {
+	cards := newDeck()
+
+	cards.saveToFile("my_cards.txt")
+	cards.shuffle()
+	cards.print()
 }
