@@ -45,16 +45,25 @@ func (d deck) saveToFile(filename string) error {
 	return os.WriteFile(filename, []byte(d.toString()), 0666)
 }
 
-func newDeckFromFile(filename string) deck {
+func loadDeckFromFile(filename string) (deck, error) {
 	bs, err := os.ReadFile(filename)
 
+	if err != nil {
+		return nil, err
+	}
+
+	s := strings.Split(string(bs), ",")
+	return deck(s), nil
+}
+
+func newDeckFromFile(filename string) deck {
+	d, err := loadDeckFromFile(filename)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		os.Exit(1)
 	}
 
-	s := strings.Split(string(bs), ",")
-	return deck(s)
+	return d
 }
 
 func (d deck) shuffle() {
@@ -65,6 +74,39 @@ func (d deck) shuffle() {
 		newPos := r.Intn(len(d) - 1)
 		d[i], d[newPos] = d[newPos], d[i]
 	}
+}
+
+func NewToFile(filename string) error {
+	cards := newDeck()
+	return cards.saveToFile(filename)
+}
+
+func ShuffleFile(inFilename, outFilename string) error {
+	cards, err := loadDeckFromFile(inFilename)
+	if err != nil {
+		return err
+	}
+
+	cards.shuffle()
+	return cards.saveToFile(outFilename)
+}
+
+func DealFile(filename string, handSize int) ([]string, []string, error) {
+	cards, err := loadDeckFromFile(filename)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if handSize <= 0 {
+		return nil, nil, fmt.Errorf("hand size must be greater than 0")
+	}
+
+	if handSize > len(cards) {
+		return nil, nil, fmt.Errorf("hand size %d exceeds deck size %d", handSize, len(cards))
+	}
+
+	hand, remaining := deal(cards, handSize)
+	return []string(hand), []string(remaining), nil
 }
 
 func Run() {

@@ -35,3 +35,40 @@ func TestSaveToDeckAndNewDeckFromFile(t *testing.T) {
 
 	os.Remove("_decktesting")
 }
+
+func TestLoadDeckFromFile(t *testing.T) {
+	os.Remove("_decktesting")
+
+	deck := newDeck()
+	deck.saveToFile("_decktesting")
+
+	loadedDeck, err := loadDeckFromFile("_decktesting")
+	if err != nil {
+		t.Errorf("Expected no error loading deck, but got %v", err)
+	}
+
+	if len(loadedDeck) != 16 {
+		t.Errorf("Expected 16 cards in loaded deck, got %v", len(loadedDeck))
+	}
+
+	os.Remove("_decktesting")
+}
+
+func TestDealFileInvalidHand(t *testing.T) {
+	os.Remove("_decktesting")
+
+	deck := newDeck()
+	deck.saveToFile("_decktesting")
+
+	_, _, err := DealFile("_decktesting", 0)
+	if err == nil {
+		t.Errorf("Expected error for hand size 0, got nil")
+	}
+
+	_, _, err = DealFile("_decktesting", 17)
+	if err == nil {
+		t.Errorf("Expected error for hand size larger than deck, got nil")
+	}
+
+	os.Remove("_decktesting")
+}
